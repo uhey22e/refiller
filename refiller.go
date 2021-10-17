@@ -49,7 +49,7 @@ var (
 	fillTmpl = template.Must(template.ParseFS(tmpls, "templates/refiller.go.tmpl"))
 )
 
-func Generate(w io.Writer, dstPath, dstName, srcPath, srcName string) error {
+func Generate(w io.Writer, packageName, dstPath, dstName, srcPath, srcName string) error {
 	b, err := ioutil.ReadFile("go.mod")
 	if err != nil {
 		return err
@@ -69,17 +69,17 @@ func Generate(w io.Writer, dstPath, dstName, srcPath, srcName string) error {
 		return err
 	}
 	args := RenderArgs{
-		Package: "demo",
+		Package: packageName,
 		Imports: []string{
-			filepath.Join(root, filepath.Dir(dstPath)),
-			filepath.Join(root, filepath.Dir(srcPath)),
+			filepath.Join(root, dstPath),
+			filepath.Join(root, srcPath),
 		},
 		Dest: &Name{
-			Package: getPackageName(dstPath),
+			Package: filepath.Base(dstPath),
 			Name:    dstName,
 		},
 		Src: &Name{
-			Package: getPackageName(srcPath),
+			Package: filepath.Base(srcPath),
 			Name:    srcName,
 		},
 		FwPairs: fw,
@@ -91,6 +91,7 @@ func Generate(w io.Writer, dstPath, dstName, srcPath, srcName string) error {
 	}
 	res, err := format.Source(buf.Bytes())
 	if err != nil {
+		buf.WriteTo(w)
 		return err
 	}
 	w.Write(res)
@@ -99,20 +100,20 @@ func Generate(w io.Writer, dstPath, dstName, srcPath, srcName string) error {
 
 func InspectPairs(dstPath, dstName, srcPath, srcName string) ([]*Pair, error) {
 	fset := token.NewFileSet()
-	dstFile, err := parser.ParseFile(fset, dstPath, nil, parser.Mode(0))
+	dstPkgs, err := parser.ParseDir(fset, dstPath, nil, parser.Mode(0))
 	if err != nil {
 		return nil, err
 	}
-	srcFile, err := parser.ParseFile(fset, srcPath, nil, parser.Mode(0))
+	srcPkgs, err := parser.ParseDir(fset, srcPath, nil, parser.Mode(0))
 	if err != nil {
 		return nil, err
 	}
 
-	dst, err := FindStruct(dstFile, dstName)
+	dst, err := FindStructFromPackages(dstPkgs, dstName)
 	if err != nil {
 		return nil, err
 	}
-	src, err := FindStruct(srcFile, srcName)
+	src, err := FindStructFromPackages(srcPkgs, srcName)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +147,33 @@ func MakePairs(dst, src *ast.StructType) []*Pair {
 	return res
 }
 
-func FindStruct(file *ast.File, name string) (*ast.StructType, error) {
+func FindStructFromPackages(pkgs map[string]*ast.Package, name string) (*ast.StructType, error) {
+	for _, pkg := range pkgs {
+		s, err := FindStructFromPackage(pkg, name)
+		if errors.Is(err, ErrStructNotFound) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+	return nil, fmt.Errorf("%w: %s", ErrStructNotFound, name)
+}
+
+func FindStructFromPackage(pkg *ast.Package, name string) (*ast.StructType, error) {
+	for _, file := range pkg.Files {
+		s, err := FindStructFromFile(file, name)
+		if errors.Is(err, ErrStructNotFound) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		return s, nil
+	}
+	return nil, fmt.Errorf("%w: %s.%s", ErrStructNotFound, pkg.Name, name)
+}
+
+func FindStructFromFile(file *ast.File, name string) (*ast.StructType, error) {
 	for _, d := range file.Decls {
 		gd, ok := d.(*ast.GenDecl)
 		if !ok {
@@ -162,12 +189,12 @@ func FindStruct(file *ast.File, name string) (*ast.StructType, error) {
 			}
 			st, ok := ts.Type.(*ast.StructType)
 			if !ok {
-				return nil, fmt.Errorf("%w: %s.%s", ErrNotStruct, file.Name.String(), name)
+				return nil, fmt.Errorf("%w: %s %s", ErrNotStruct, file.Name, name)
 			}
 			return st, nil
 		}
 	}
-	return nil, fmt.Errorf("%w: %s.%s", ErrStructNotFound, file.Name.String(), name)
+	return nil, fmt.Errorf("%w: %s %s", ErrStructNotFound, file.Name, name)
 }
 
 func getFieldName(f *ast.Field) string {
@@ -186,12 +213,4 @@ func isPrivate(name string) bool {
 		return false
 	}
 	return unicode.IsLower(rune(name[0]))
-}
-
-func getPackageName(path string) string {
-	d := filepath.Base(filepath.Dir(path))
-	if d == "." {
-		d = ""
-	}
-	return d
 }

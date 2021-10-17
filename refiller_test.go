@@ -13,23 +13,24 @@ import (
 )
 
 func TestGenerate(t *testing.T) {
-	dstPath := filepath.Join("testdata", "ex1", "ex1.go")
+	dstPath := filepath.Join("testdata", "ex1")
 	dstName := "Ex1"
-	srcPath := filepath.Join("testdata", "ex2", "ex2.go")
+	srcPath := filepath.Join("testdata", "ex2")
 	srcName := "Ex2"
 	w := &bytes.Buffer{}
 
-	if err := Generate(w, dstPath, dstName, srcPath, srcName); err != nil {
+	if err := Generate(w, "test", dstPath, dstName, srcPath, srcName); err != nil {
 		t.Errorf("Generate() error = %v", err)
+		t.Log(w.String())
 		return
 	}
 	t.Log(w.String())
 }
 
 func TestInspectPairs(t *testing.T) {
-	dstPath := filepath.Join("testdata", "ex1", "ex1.go")
+	dstPath := filepath.Join("testdata", "ex1")
 	dstName := "Ex1"
-	srcPath := filepath.Join("testdata", "ex2", "ex2.go")
+	srcPath := filepath.Join("testdata", "ex2")
 	srcName := "Ex2"
 
 	want := []*Pair{
@@ -115,7 +116,7 @@ func TestFindStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = FindStruct(file, name)
+	_, err = FindStructFromFile(file, name)
 	if err != nil {
 		t.Errorf("FindStruct() error = %v", err)
 		return
@@ -148,43 +149,6 @@ func Test_isPrivate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := isPrivate(tt.args.name); got != tt.want {
 				t.Errorf("isPrivate() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_getPackageName(t *testing.T) {
-	type args struct {
-		path string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			args: args{
-				path: "ex1.go",
-			},
-			want: "",
-		},
-		{
-			args: args{
-				path: filepath.Join("ex1", "ex1.go"),
-			},
-			want: "ex1",
-		},
-		{
-			args: args{
-				path: filepath.Join("testdata", "ex1", "ex1.go"),
-			},
-			want: "ex1",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getPackageName(tt.args.path); got != tt.want {
-				t.Errorf("getPackageName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
