@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"unicode"
 
@@ -24,8 +25,7 @@ type RenderArgs struct {
 	Imports []string
 	Dest    *Name
 	Src     *Name
-	FwPairs []*Pair
-	BwPairs []*Pair
+	Pairs   []*Pair
 }
 
 type Name struct {
@@ -41,6 +41,7 @@ type Pair struct {
 var (
 	ErrStructNotFound = errors.New("struct is not found")
 	ErrNotStruct      = errors.New("not a struct")
+	ErrInvalidTarget  = errors.New("invalid target")
 )
 
 var (
@@ -49,7 +50,7 @@ var (
 	fillTmpl = template.Must(template.ParseFS(tmpls, "templates/refiller.go.tmpl"))
 )
 
-func Generate(w io.Writer, packageName, dstPath, dstName, srcPath, srcName string) error {
+func Generate(w io.Writer, packageName, dest, src string) error {
 	b, err := ioutil.ReadFile("go.mod")
 	if err != nil {
 		return err
@@ -60,30 +61,34 @@ func Generate(w io.Writer, packageName, dstPath, dstName, srcPath, srcName strin
 	}
 	root := mod.Module.Mod.Path
 
-	fw, err := InspectPairs(dstPath, dstName, srcPath, srcName)
+	d, err := parseTarget(dest)
 	if err != nil {
 		return err
 	}
-	bw, err := InspectPairs(srcPath, srcName, dstPath, dstName)
+	s, err := parseTarget(src)
+	if err != nil {
+		return err
+	}
+
+	pairs, err := InspectPairs(d.Package, d.Name, s.Package, s.Name)
 	if err != nil {
 		return err
 	}
 	args := RenderArgs{
 		Package: packageName,
 		Imports: []string{
-			filepath.Join(root, dstPath),
-			filepath.Join(root, srcPath),
+			filepath.Join(root, d.Package),
+			filepath.Join(root, s.Package),
 		},
 		Dest: &Name{
-			Package: filepath.Base(dstPath),
-			Name:    dstName,
+			Package: filepath.Base(d.Package),
+			Name:    d.Name,
 		},
 		Src: &Name{
-			Package: filepath.Base(srcPath),
-			Name:    srcName,
+			Package: filepath.Base(s.Package),
+			Name:    s.Name,
 		},
-		FwPairs: fw,
-		BwPairs: bw,
+		Pairs: pairs,
 	}
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	if err := fillTmpl.Execute(buf, args); err != nil {
@@ -98,27 +103,30 @@ func Generate(w io.Writer, packageName, dstPath, dstName, srcPath, srcName strin
 	return nil
 }
 
-func InspectPairs(dstPath, dstName, srcPath, srcName string) ([]*Pair, error) {
+func InspectPairs(destPath, destName, srcPath, srcName string) ([]*Pair, error) {
 	fset := token.NewFileSet()
-	dstPkgs, err := parser.ParseDir(fset, dstPath, nil, parser.Mode(0))
+	dstPkgs, err := parser.ParseDir(fset, destPath, nil, parser.Mode(0))
 	if err != nil {
 		return nil, err
 	}
-	srcPkgs, err := parser.ParseDir(fset, srcPath, nil, parser.Mode(0))
+	srcPkgs := dstPkgs
+	if srcPath != destPath {
+		srcPkgs, err = parser.ParseDir(fset, srcPath, nil, parser.Mode(0))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	d, err := FindStructFromPackages(dstPkgs, destName)
+	if err != nil {
+		return nil, err
+	}
+	s, err := FindStructFromPackages(srcPkgs, srcName)
 	if err != nil {
 		return nil, err
 	}
 
-	dst, err := FindStructFromPackages(dstPkgs, dstName)
-	if err != nil {
-		return nil, err
-	}
-	src, err := FindStructFromPackages(srcPkgs, srcName)
-	if err != nil {
-		return nil, err
-	}
-
-	pairs := MakePairs(dst, src)
+	pairs := MakePairs(d, s)
 	return pairs, nil
 }
 
@@ -208,10 +216,18 @@ func getFieldName(f *ast.Field) string {
 }
 
 func getTypeName(f *ast.Field) string {
+	switch v := f.Type.(type) {
+	case *ast.Ident:
+		return v.Name
+	case *ast.SelectorExpr:
+		x := v.X.(*ast.Ident).Name
+		sel := v.Sel.Name
+		return x + "." + sel
+	}
 	if t, ok := f.Type.(*ast.Ident); ok {
 		return t.Name
 	}
-	panic(fmt.Sprintf("unknown type: %v", f.Type))
+	panic(fmt.Sprintf("unknown type: %#v", f.Type))
 }
 
 func getKey(s string) string {
@@ -223,4 +239,15 @@ func isPrivate(name string) bool {
 		return false
 	}
 	return unicode.IsLower(rune(name[0]))
+}
+
+func parseTarget(t string) (*Name, error) {
+	s := strings.Split(t, ".")
+	if len(s) != 2 {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidTarget, t)
+	}
+	return &Name{
+		Package: s[0],
+		Name:    s[1],
+	}, nil
 }

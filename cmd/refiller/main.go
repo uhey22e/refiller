@@ -20,19 +20,11 @@ var (
 func main() {
 	pflag.Parse()
 
-	sp := strings.Split(*dest, ".")
-	dstPath := sp[0]
-	dstName := sp[1]
-	sp = strings.Split(*src, ".")
-	srcPath := sp[0]
-	srcName := sp[1]
-
+	var err error
 	if err := os.MkdirAll(*output, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
-
-	var err error
-	o, err := os.Create(filepath.Join(*output, strcase.ToSnake(dstName)+".go"))
+	o, err := os.Create(filepath.Join(*output, strcase.ToSnake(strings.Split("dest", ".")[1])+".go"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -45,7 +37,7 @@ func main() {
 		}
 	}()
 
-	err = refiller.Generate(o, filepath.Base(*output), dstPath, dstName, srcPath, srcName)
+	err = refiller.Generate(o, filepath.Base(*output), *dest, *src)
 	if err != nil {
 		log.Println(err)
 	}

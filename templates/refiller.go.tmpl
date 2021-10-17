@@ -19,7 +19,7 @@ import (
 
 func New{{ .Dest.Name }}(src *{{ $s }}) *{{ $d }} {
 	v := &{{ $d }}{
-		{{ range .FwPairs -}}
+		{{ range .Pairs -}}
 			{{ .Dest }}: src.{{ .Src }},
 		{{ end -}}
 	}
@@ -28,22 +28,22 @@ func New{{ .Dest.Name }}(src *{{ $s }}) *{{ $d }} {
 
 func New{{ .Src.Name }}(src *{{ $d }}) *{{ $s }} {
 	v := &{{ $s }}{
-		{{ range .BwPairs -}}
-			{{ .Dest }}: src.{{ .Src }},
+		{{ range .Pairs -}}
+			{{ .Src }}: src.{{ .Dest }},
 		{{ end -}}
 	}
 	return v
 }
 
 func Fill{{ .Dest.Name }}(dst *{{ $d }}, src *{{ $s }}) {
-	{{ range .FwPairs -}}
+	{{ range .Pairs -}}
 		dst.{{ .Dest }} = src.{{ .Src }}
 	{{ end -}}
 }
 
 func Fill{{ .Src.Name }}(dst *{{ $s }}, src *{{ $d }}) {
-	{{ range .BwPairs -}}
-		dst.{{ .Dest }} = src.{{ .Src }}
+	{{ range .Pairs -}}
+		dst.{{ .Src }} = src.{{ .Dest }}
 	{{ end -}}
 }
 

@@ -6,20 +6,17 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerate(t *testing.T) {
-	dstPath := filepath.Join("testdata", "ex1")
-	dstName := "Ex1"
-	srcPath := filepath.Join("testdata", "ex2")
-	srcName := "Ex2"
+	dest := "testdata/ex1.Ex1"
+	src := "testdata/ex2.Ex2"
 	w := &bytes.Buffer{}
 
-	if err := Generate(w, "test", dstPath, dstName, srcPath, srcName); err != nil {
+	if err := Generate(w, "test", dest, src); err != nil {
 		t.Errorf("Generate() error = %v", err)
 		t.Log(w.String())
 		return
@@ -28,8 +25,8 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestInspectPairs(t *testing.T) {
-	dstPath := filepath.Join("testdata", "ex1")
-	dstName := "Ex1"
+	destPath := filepath.Join("testdata", "ex1")
+	destName := "Ex1"
 	srcPath := filepath.Join("testdata", "ex2")
 	srcName := "Ex2"
 
@@ -42,15 +39,19 @@ func TestInspectPairs(t *testing.T) {
 			Dest: "Name",
 			Src:  "Name",
 		},
+		{
+			Dest: "Timestamp",
+			Src:  "Timestamp",
+		},
 	}
 
-	got, err := InspectPairs(dstPath, dstName, srcPath, srcName)
+	got, err := InspectPairs(destPath, destName, srcPath, srcName)
 	if err != nil {
 		t.Errorf("InspectPairs() error = %v", err)
 		return
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("InspectPairs() = %v, want %v", got, want)
+	if !cmp.Equal(got, want) {
+		t.Errorf("InspectPairs() = %v", cmp.Diff(got, want))
 	}
 }
 
