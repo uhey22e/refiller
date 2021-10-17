@@ -17,6 +17,14 @@ var (
 	src    = pflag.StringP("source", "s", "", "Source struct.")
 )
 
+func getOutputFilename(t string) string {
+	s := strings.Split(t, ".")
+	if len(s) != 2 {
+		panic("Invalid target name: " + t)
+	}
+	return strcase.ToSnake(s[1]) + ".go"
+}
+
 func main() {
 	pflag.Parse()
 
@@ -24,7 +32,7 @@ func main() {
 	if err := os.MkdirAll(*output, os.ModePerm); err != nil {
 		log.Fatal(err)
 	}
-	o, err := os.Create(filepath.Join(*output, strcase.ToSnake(strings.Split("dest", ".")[1])+".go"))
+	o, err := os.Create(filepath.Join(*output, getOutputFilename(*dest)))
 	if err != nil {
 		log.Fatal(err)
 	}
