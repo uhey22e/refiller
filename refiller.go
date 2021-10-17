@@ -89,8 +89,8 @@ func Generate(w io.Writer, packageName, dest, src string) error {
 		Pairs:    pairs,
 	}
 	if args.DestName == args.SrcName {
-		args.DestName = strcase.ToCamel(d.Package) + args.DestName
-		args.SrcName = strcase.ToCamel(s.Package) + args.SrcName
+		args.DestName = strcase.ToCamel(filepath.Base(d.Package)) + args.DestName
+		args.SrcName = strcase.ToCamel(filepath.Base(s.Package)) + args.SrcName
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
