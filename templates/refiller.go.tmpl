@@ -8,17 +8,8 @@ import (
 	{{ end -}}
 )
 
-{{ $d := printf "%s.%s" .Dest.Package .Dest.Name -}}
-{{ if eq .Dest.Package "" }}
-	{{ $d := .Dest.Name -}}
-{{ end }}
-{{ $s := printf "%s.%s" .Src.Package .Src.Name -}}
-{{ if eq .Src.Package "" }}
-	{{ $s := .Src.Name -}}
-{{ end }}
-
-func New{{ .Dest.Name }}(src *{{ $s }}) *{{ $d }} {
-	v := &{{ $d }}{
+func New{{ .DestName }}(src *{{ .SrcType }}) *{{ .DestType }} {
+	v := &{{ .DestType }}{
 		{{ range .Pairs -}}
 			{{ .Dest }}: src.{{ .Src }},
 		{{ end -}}
@@ -26,8 +17,8 @@ func New{{ .Dest.Name }}(src *{{ $s }}) *{{ $d }} {
 	return v
 }
 
-func New{{ .Src.Name }}(src *{{ $d }}) *{{ $s }} {
-	v := &{{ $s }}{
+func New{{ .SrcName }}(src *{{ .DestType }}) *{{ .SrcType }} {
+	v := &{{ .SrcType }}{
 		{{ range .Pairs -}}
 			{{ .Src }}: src.{{ .Dest }},
 		{{ end -}}
@@ -35,13 +26,13 @@ func New{{ .Src.Name }}(src *{{ $d }}) *{{ $s }} {
 	return v
 }
 
-func Fill{{ .Dest.Name }}(dst *{{ $d }}, src *{{ $s }}) {
+func Fill{{ .DestName }}(dst *{{ .DestType }}, src *{{ .SrcType }}) {
 	{{ range .Pairs -}}
 		dst.{{ .Dest }} = src.{{ .Src }}
 	{{ end -}}
 }
 
-func Fill{{ .Src.Name }}(dst *{{ $s }}, src *{{ $d }}) {
+func Fill{{ .SrcName }}(dst *{{ .SrcType }}, src *{{ .DestType }}) {
 	{{ range .Pairs -}}
 		dst.{{ .Src }} = src.{{ .Dest }}
 	{{ end -}}

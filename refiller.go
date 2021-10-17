@@ -21,21 +21,23 @@ import (
 )
 
 type RenderArgs struct {
-	Package string
-	Imports []string
-	Dest    *Name
-	Src     *Name
-	Pairs   []*Pair
-}
-
-type Name struct {
-	Package string
-	Name    string
+	Package  string
+	Imports  []string
+	DestType string
+	DestName string
+	SrcType  string
+	SrcName  string
+	Pairs    []*Pair
 }
 
 type Pair struct {
 	Dest string
 	Src  string
+}
+
+type Target struct {
+	Package    string
+	StructName string
 }
 
 var (
@@ -69,27 +71,28 @@ func Generate(w io.Writer, packageName, dest, src string) error {
 	if err != nil {
 		return err
 	}
-
-	pairs, err := InspectPairs(d.Package, d.Name, s.Package, s.Name)
+	pairs, err := InspectPairs(d.Package, d.StructName, s.Package, s.StructName)
 	if err != nil {
 		return err
 	}
+
 	args := RenderArgs{
 		Package: packageName,
 		Imports: []string{
 			filepath.Join(root, d.Package),
 			filepath.Join(root, s.Package),
 		},
-		Dest: &Name{
-			Package: filepath.Base(d.Package),
-			Name:    d.Name,
-		},
-		Src: &Name{
-			Package: filepath.Base(s.Package),
-			Name:    s.Name,
-		},
-		Pairs: pairs,
+		DestType: filepath.Base(d.Package) + "." + d.StructName,
+		DestName: d.StructName,
+		SrcType:  filepath.Base(s.Package) + "." + s.StructName,
+		SrcName:  s.StructName,
+		Pairs:    pairs,
 	}
+	if args.DestName == args.SrcName {
+		args.DestName = strcase.ToCamel(d.Package) + args.DestName
+		args.SrcName = strcase.ToCamel(s.Package) + args.SrcName
+	}
+
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	if err := fillTmpl.Execute(buf, args); err != nil {
 		return err
@@ -241,13 +244,13 @@ func isPrivate(name string) bool {
 	return unicode.IsLower(rune(name[0]))
 }
 
-func parseTarget(t string) (*Name, error) {
+func parseTarget(t string) (*Target, error) {
 	s := strings.Split(t, ".")
 	if len(s) != 2 {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidTarget, t)
 	}
-	return &Name{
-		Package: s[0],
-		Name:    s[1],
+	return &Target{
+		Package:    s[0],
+		StructName: s[1],
 	}, nil
 }
