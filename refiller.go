@@ -123,13 +123,13 @@ func InspectPairs(dstPath, dstName, srcPath, srcName string) ([]*Pair, error) {
 }
 
 func MakePairs(dst, src *ast.StructType) []*Pair {
-	m := make(map[string]string, len(dst.Fields.List))
+	m := make(map[string]*ast.Field, len(dst.Fields.List))
 	for _, f := range src.Fields.List {
 		name := getFieldName(f)
 		if isPrivate(name) {
 			continue
 		}
-		m[getKey(name)] = name
+		m[getKey(name)] = f
 	}
 	res := make([]*Pair, 0, len(dst.Fields.List))
 	for _, f := range dst.Fields.List {
@@ -138,9 +138,12 @@ func MakePairs(dst, src *ast.StructType) []*Pair {
 			continue
 		}
 		if s, ok := m[getKey(name)]; ok {
+			if getTypeName(f) != getTypeName(s) {
+				continue
+			}
 			res = append(res, &Pair{
 				Dest: name,
-				Src:  s,
+				Src:  getFieldName(s),
 			})
 		}
 	}
@@ -202,6 +205,13 @@ func getFieldName(f *ast.Field) string {
 		panic(fmt.Sprintf("unexpected names: %v", f.Names))
 	}
 	return f.Names[0].Name
+}
+
+func getTypeName(f *ast.Field) string {
+	if t, ok := f.Type.(*ast.Ident); ok {
+		return t.Name
+	}
+	panic(fmt.Sprintf("unknown type: %v", f.Type))
 }
 
 func getKey(s string) string {

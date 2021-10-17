@@ -60,15 +60,23 @@ func TestMakePairs(t *testing.T) {
 			List: []*ast.Field{
 				{
 					Names: []*ast.Ident{ast.NewIdent("ID")},
+					Type:  ast.NewIdent("string"),
 				},
 				{
 					Names: []*ast.Ident{ast.NewIdent("Name")},
+					Type:  ast.NewIdent("string"),
 				},
 				{
 					Names: []*ast.Ident{ast.NewIdent("ShortName")},
+					Type:  ast.NewIdent("string"),
 				},
 				{
 					Names: []*ast.Ident{ast.NewIdent("variant")},
+					Type:  ast.NewIdent("string"),
+				},
+				{
+					Names: []*ast.Ident{ast.NewIdent("Date")},
+					Type:  ast.NewIdent("time.Time"),
 				},
 			},
 		},
@@ -78,15 +86,23 @@ func TestMakePairs(t *testing.T) {
 			List: []*ast.Field{
 				{
 					Names: []*ast.Ident{ast.NewIdent("Id")},
+					Type:  ast.NewIdent("string"),
 				},
 				{
 					Names: []*ast.Ident{ast.NewIdent("Name")},
+					Type:  ast.NewIdent("string"),
 				},
 				{
 					Names: []*ast.Ident{ast.NewIdent("shortName")},
+					Type:  ast.NewIdent("string"),
 				},
 				{
 					Names: []*ast.Ident{ast.NewIdent("Variant")},
+					Type:  ast.NewIdent("string"),
+				},
+				{
+					Names: []*ast.Ident{ast.NewIdent("Date")},
+					Type:  ast.NewIdent("string"),
 				},
 			},
 		},
@@ -106,7 +122,7 @@ func TestMakePairs(t *testing.T) {
 	}
 }
 
-func TestFindStruct(t *testing.T) {
+func TestFindStructFromFile(t *testing.T) {
 	path := filepath.Join("testdata", "ex1", "ex1.go")
 	name := "Ex1"
 
@@ -116,11 +132,12 @@ func TestFindStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = FindStructFromFile(file, name)
+	s, err := FindStructFromFile(file, name)
 	if err != nil {
 		t.Errorf("FindStruct() error = %v", err)
 		return
 	}
+	ast.Print(fset, s)
 }
 
 func Test_isPrivate(t *testing.T) {
